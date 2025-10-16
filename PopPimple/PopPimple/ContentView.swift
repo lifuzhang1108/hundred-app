@@ -6,23 +6,16 @@
 //
 
 import SwiftUI
+import AVKit
 
 struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
     @State private var isPlayingVideo = false
+    @State private var videoThumbnail: UIImage?
+    @State private var player: AVPlayer?
     
     var body: some View {
-        if isPlayingVideo {
-            VideoPlayerView(videoName: "pimple_pop", onFinish: {
-                isPlayingVideo = false
-                withAnimation {
-                    viewModel.addRandomPimples()
-                }
-            })
-            .transition(.opacity)
-        } else {
-            mainContentView
-        }
+        mainContentView
     }
     
     private var mainContentView: some View {
@@ -44,7 +37,7 @@ struct ContentView: View {
                     HStack(spacing: 8) {
                         Text("🤮")
                             .font(.system(size: 40))
-                        Text("Pimple Popper Prank")
+                        Text("Pimple Couple")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundStyle(
                                 LinearGradient(
@@ -57,7 +50,7 @@ struct ContentView: View {
                             .font(.system(size: 40))
                     }
                     
-                    Text("Let the popping begin!")
+                    Text("Ready to pop?")
                         .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(.pink.opacity(0.8))
                 }
@@ -65,134 +58,184 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // Face with pimples area
+                // Video preview area
                 ZStack {
-                    // Face background (placeholder - could be replaced with actual photo)
-                    RoundedRectangle(cornerRadius: 30)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.99, green: 0.96, blue: 0.92),
-                                    Color(red: 0.98, green: 0.94, blue: 0.88)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                    if isPlayingVideo, let player = player {
+                        // Inline video player
+                        InlineVideoPlayer(player: player)
+                            .frame(width: 280, height: 350)
+                            .clipShape(RoundedRectangle(cornerRadius: 30))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 30)
+                                    .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
-                        )
-                        .frame(width: 280, height: 350)
-                        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
-                    
-                    // Pimples
-                    ForEach(viewModel.pimples) { pimple in
-                        if !pimple.isPopped {
-                            PimpleView(pimple: pimple) {
-                                viewModel.popPimple(pimple)
-                            }
-                        }
-                    }
-                    
-                    // Pop effects
-                    ForEach(viewModel.popEffects) { effect in
-                        PopEffectView(effect: effect)
-                    }
-                    
-                    // Emoji decorations on face
-                    VStack(spacing: 60) {
-                        HStack(spacing: 80) {
-                            Text("😨")
-                                .font(.system(size: 35))
-                            Text("😨")
-                                .font(.system(size: 35))
-                        }
-                        
-                        Text("😱")
-                            .font(.system(size: 40))
+                            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                    } else if let thumbnail = videoThumbnail {
+                        // Video thumbnail
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 280, height: 350)
+                            .clipShape(RoundedRectangle(cornerRadius: 30))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 30)
+                                    .stroke(Color.pink.opacity(0.5), lineWidth: 3)
+                            )
+                            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                    } else {
+                        // Loading placeholder
+                        RoundedRectangle(cornerRadius: 30)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 280, height: 350)
+                            .overlay(
+                                VStack {
+                                    ProgressView()
+                                        .scaleEffect(1.5)
+                                    Text("Loading preview...")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
+                                        .padding(.top, 8)
+                                }
+                            )
                     }
                 }
                 .frame(height: 400)
-                
-                // Message display
-                Text(viewModel.currentMessage)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundColor(.pink)
-                    .frame(height: 30)
-                    .animation(.easeInOut, value: viewModel.currentMessage)
                 
                 Spacer()
                 
                 // Stats section
                 VStack(spacing: 15) {
-                    // Pop counter
-                    HStack {
-                        Image(systemName: "circle.fill")
-                            .foregroundColor(.red)
-                        Text("Pimples Popped:")
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                        Spacer()
-                        Text("\(viewModel.poppedCount)")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.pink)
-                    }
-                    .padding()
-                    .background(Color.white.opacity(0.7))
-                    .cornerRadius(15)
-                    
-                    // Tip text
-                    HStack {
-                        Text("💡")
-                        Text("Tip: Click the button to add pimples to the photo")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundColor(.orange.opacity(0.8))
-                    }
-                    .padding()
-                    .background(Color.yellow.opacity(0.2))
-                    .cornerRadius(15)
-                    
-                    // Action buttons
-                    HStack(spacing: 15) {
-                        Button(action: {
+                    // Action button
+                    Button(action: {
+                        if isPlayingVideo {
+                            // Stop video
+                            player?.pause()
+                            player?.seek(to: .zero)
                             withAnimation {
-                                isPlayingVideo = true
+                                isPlayingVideo = false
                             }
-                        }) {
-                            HStack {
-                                Text("😈")
-                                    .font(.system(size: 18))
-                                Text("LET'S POP!")
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                Text("😈")
-                                    .font(.system(size: 18))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.pink, Color.purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                        } else {
+                            // Start video
+                            setupAndPlayVideo()
+                        }
+                    }) {
+                        HStack {
+                            Text(isPlayingVideo ? "😱" : "😈")
+                                .font(.system(size: 24))
+                            Text(isPlayingVideo ? "STOP" : "LET'S POP!")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                            Text(isPlayingVideo ? "😱" : "😈")
+                                .font(.system(size: 24))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                colors: [Color.pink, Color.purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
                             )
-                            .cornerRadius(15)
-                        }
-                        
-                        Button(action: {
-                            withAnimation {
-                                viewModel.reset()
-                            }
-                        }) {
-                            Image(systemName: "arrow.counterclockwise")
-                                .foregroundColor(.white)
-                                .frame(width: 50, height: 50)
-                                .background(Color.gray.opacity(0.6))
-                                .cornerRadius(15)
-                        }
+                        )
+                        .cornerRadius(15)
+                        .shadow(color: .pink.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
                 }
                 .padding(.horizontal, 30)
                 .padding(.bottom, 30)
             }
         }
+        .onAppear {
+            loadVideoThumbnail()
+        }
+    }
+    
+    // Function to extract first frame from video
+    private func loadVideoThumbnail() {
+        guard let videoURL = Bundle.main.url(forResource: "pimple_pop", withExtension: "mp4") else {
+            print("Video file not found")
+            return
+        }
+        
+        let asset = AVAsset(url: videoURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.requestedTimeToleranceAfter = .zero
+        imageGenerator.requestedTimeToleranceBefore = .zero
+        
+        let time = CMTime(seconds: 0, preferredTimescale: 600)
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
+                let uiImage = UIImage(cgImage: cgImage)
+                
+                DispatchQueue.main.async {
+                    self.videoThumbnail = uiImage
+                }
+            } catch {
+                print("Error generating thumbnail: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Function to setup and play video inline
+    private func setupAndPlayVideo() {
+        guard let videoURL = Bundle.main.url(forResource: "pimple_pop", withExtension: "mp4") else {
+            print("Video file not found")
+            return
+        }
+        
+        let newPlayer = AVPlayer(url: videoURL)
+        newPlayer.seek(to: .zero)
+        self.player = newPlayer
+        
+        withAnimation {
+            isPlayingVideo = true
+        }
+        
+        // Play the video
+        newPlayer.play()
+        
+        // Observe when video ends
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: newPlayer.currentItem,
+            queue: .main
+        ) { [weak newPlayer] _ in
+            newPlayer?.seek(to: .zero)
+            withAnimation {
+                self.isPlayingVideo = false
+            }
+        }
+    }
+}
+
+// Inline video player view
+struct InlineVideoPlayer: UIViewRepresentable {
+    let player: AVPlayer
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        let playerLayer = AVPlayerLayer(player: player)
+        playerLayer.videoGravity = .resizeAspectFill
+        view.layer.addSublayer(playerLayer)
+        context.coordinator.playerLayer = playerLayer
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            context.coordinator.playerLayer?.frame = uiView.bounds
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var playerLayer: AVPlayerLayer?
     }
 }
 

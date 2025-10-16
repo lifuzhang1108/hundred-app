@@ -79,6 +79,9 @@ struct VideoPlayerView: View {
         
         player = AVPlayer(url: videoURL)
         player?.volume = 1.0
+        
+        // Ensure video starts from the beginning
+        player?.seek(to: .zero)
     }
     
     private func setupVideoEndObserver() {
