@@ -9,8 +9,23 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
+    @State private var isPlayingVideo = false
     
     var body: some View {
+        if isPlayingVideo {
+            VideoPlayerView(videoName: "pimple_pop", onFinish: {
+                isPlayingVideo = false
+                withAnimation {
+                    viewModel.addRandomPimples()
+                }
+            })
+            .transition(.opacity)
+        } else {
+            mainContentView
+        }
+    }
+    
+    private var mainContentView: some View {
         ZStack {
             // Background gradient
             LinearGradient(
@@ -137,7 +152,7 @@ struct ContentView: View {
                     HStack(spacing: 15) {
                         Button(action: {
                             withAnimation {
-                                viewModel.addRandomPimples()
+                                isPlayingVideo = true
                             }
                         }) {
                             HStack {

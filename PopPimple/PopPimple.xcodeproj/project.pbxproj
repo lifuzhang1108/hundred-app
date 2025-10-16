@@ -12,6 +12,8 @@
 		B1000005 /* PimpleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000006 /* PimpleViewModel.swift */; };
 		B1000007 /* PimpleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000008 /* PimpleView.swift */; };
 		B1000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000A /* Assets.xcassets */; };
+		B1000020 /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000021 /* VideoPlayerView.swift */; };
+		E5E98BF52EA094A400AE95B1 /* pimple_pop.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = E5E98BF42EA094A400AE95B1 /* pimple_pop.mp4 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,8 @@
 		B1000008 /* PimpleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PimpleView.swift; sourceTree = "<group>"; };
 		B100000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B100000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000021 /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
+		E5E98BF42EA094A400AE95B1 /* pimple_pop.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = pimple_pop.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,10 +42,12 @@
 		B100000D /* PopPimple */ = {
 			isa = PBXGroup;
 			children = (
+				E5E98BF42EA094A400AE95B1 /* pimple_pop.mp4 */,
 				B1000002 /* PopPimpleApp.swift */,
 				B1000004 /* ContentView.swift */,
 				B1000006 /* PimpleViewModel.swift */,
 				B1000008 /* PimpleView.swift */,
+				B1000021 /* VideoPlayerView.swift */,
 				B100000A /* Assets.xcassets */,
 				B100000B /* Info.plist */,
 			);
@@ -122,6 +128,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E5E98BF52EA094A400AE95B1 /* pimple_pop.mp4 in Resources */,
 				B1000009 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -136,6 +143,7 @@
 				B1000003 /* ContentView.swift in Sources */,
 				B1000005 /* PimpleViewModel.swift in Sources */,
 				B1000007 /* PimpleView.swift in Sources */,
+				B1000020 /* VideoPlayerView.swift in Sources */,
 				B1000001 /* PopPimpleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -269,7 +277,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = U9U84XCWJS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PopPimple/Info.plist;
@@ -298,7 +306,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = U9U84XCWJS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PopPimple/Info.plist;
@@ -345,4 +353,3 @@
 	};
 	rootObject = B1000014 /* Project object */;
 }
-
