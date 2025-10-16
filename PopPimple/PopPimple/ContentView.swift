@@ -11,7 +11,6 @@ import AVKit
 struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
     @State private var isPlayingVideo = false
-    @State private var videoThumbnail: UIImage?
     @State private var player: AVPlayer?
     
     var body: some View {
@@ -58,10 +57,9 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // Video preview area
+                // Video preview area - always showing video (paused or playing)
                 ZStack {
-                    if isPlayingVideo, let player = player {
-                        // Inline video player
+                    if let player = player {
                         InlineVideoPlayer(player: player)
                             .frame(width: 280, height: 350)
                             .clipShape(RoundedRectangle(cornerRadius: 30))
@@ -70,22 +68,8 @@ struct ContentView: View {
                                     .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-                            .transition(.identity)
-                    } else if let thumbnail = videoThumbnail {
-                        // Video thumbnail
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 280, height: 350)
-                            .clipShape(RoundedRectangle(cornerRadius: 30))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 30)
-                                    .stroke(Color.pink.opacity(0.5), lineWidth: 3)
-                            )
-                            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-                            .transition(.identity)
                     } else {
-                        // Loading placeholder
+                        // Loading placeholder (only shown briefly on first load)
                         RoundedRectangle(cornerRadius: 30)
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 280, height: 350)
@@ -93,17 +77,15 @@ struct ContentView: View {
                                 VStack {
                                     ProgressView()
                                         .scaleEffect(1.5)
-                                    Text("Loading preview...")
+                                    Text("Loading...")
                                         .font(.system(size: 14))
                                         .foregroundColor(.gray)
                                         .padding(.top, 8)
                                 }
                             )
-                            .transition(.identity)
                     }
                 }
                 .frame(height: 400)
-                .animation(nil, value: isPlayingVideo)
                 
                 Spacer()
                 
@@ -112,13 +94,14 @@ struct ContentView: View {
                     // Action button
                     Button(action: {
                         if isPlayingVideo {
-                            // Stop video
+                            // Stop video and return to start
                             player?.pause()
                             player?.seek(to: .zero)
                             isPlayingVideo = false
                         } else {
-                            // Start video
-                            setupAndPlayVideo()
+                            // Play video
+                            player?.play()
+                            isPlayingVideo = true
                         }
                     }) {
                         HStack {
@@ -148,41 +131,12 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            loadVideoThumbnail()
+            setupPlayer()
         }
     }
     
-    // Function to extract first frame from video
-    private func loadVideoThumbnail() {
-        guard let videoURL = Bundle.main.url(forResource: "pimple_pop", withExtension: "mp4") else {
-            print("Video file not found")
-            return
-        }
-        
-        let asset = AVAsset(url: videoURL)
-        let imageGenerator = AVAssetImageGenerator(asset: asset)
-        imageGenerator.appliesPreferredTrackTransform = true
-        imageGenerator.requestedTimeToleranceAfter = .zero
-        imageGenerator.requestedTimeToleranceBefore = .zero
-        
-        let time = CMTime(seconds: 0, preferredTimescale: 600)
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-                
-                DispatchQueue.main.async {
-                    self.videoThumbnail = uiImage
-                }
-            } catch {
-                print("Error generating thumbnail: \(error.localizedDescription)")
-            }
-        }
-    }
-    
-    // Function to setup and play video inline
-    private func setupAndPlayVideo() {
+    // Setup player when view loads (preload)
+    private func setupPlayer() {
         guard let videoURL = Bundle.main.url(forResource: "pimple_pop", withExtension: "mp4") else {
             print("Video file not found")
             return
@@ -191,11 +145,6 @@ struct ContentView: View {
         let newPlayer = AVPlayer(url: videoURL)
         newPlayer.seek(to: .zero)
         self.player = newPlayer
-        
-        isPlayingVideo = true
-        
-        // Play the video
-        newPlayer.play()
         
         // Observe when video ends
         NotificationCenter.default.addObserver(
@@ -207,6 +156,7 @@ struct ContentView: View {
             self.isPlayingVideo = false
         }
     }
+    
 }
 
 // Inline video player view
