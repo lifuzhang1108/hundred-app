@@ -52,10 +52,12 @@ struct ContentView: View {
                             .font(.system(size: 40))
                     }
                     
-                    Text(currentPhase == 0 ? "Tap the video above to start!" : "Tap the video above to continue (Phase \(currentPhase)/10)")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundColor(.pink.opacity(0.8))
-                        .multilineTextAlignment(.center)
+                    if currentPhase == 0 {
+                        Text("Tap the video above to start!")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.pink.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(.top, 20)
                 
@@ -120,13 +122,13 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .background(
                             LinearGradient(
-                                colors: [Color.blue, Color.purple],
+                                colors: [Color.pink, Color.purple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .cornerRadius(20)
-                        .shadow(color: .blue.opacity(0.4), radius: 10, x: 0, y: 5)
+                        .shadow(color: .pink.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
                 }
                 .padding(.horizontal, 30)
