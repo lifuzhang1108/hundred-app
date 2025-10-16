@@ -12,8 +12,9 @@ struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
     @State private var isPlayingVideo = false
     @State private var player: AVPlayer?
-    @State private var currentPhase: Int = 0 // 0 = not started, 1 = first third, 2 = second third, 3 = final third
+    @State private var currentPhase: Int = 0 // 0 = not started, 1 = first tenth, 2 = second tenth, etc.
     @State private var videoDuration: Double = 0
+    @State private var timeObserver: Any?
     
     var body: some View {
         mainContentView
@@ -51,9 +52,10 @@ struct ContentView: View {
                             .font(.system(size: 40))
                     }
                     
-                    Text(currentPhase == 0 ? "Ready to pop?" : "Phase \(currentPhase)/3")
+                    Text(currentPhase == 0 ? "Tap the video above to start!" : "Tap the video above to continue (Phase \(currentPhase)/10)")
                         .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(.pink.opacity(0.8))
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, 20)
                 
@@ -70,6 +72,9 @@ struct ContentView: View {
                                     .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                            .onTapGesture {
+                                playNextPhase()
+                            }
                     } else {
                         // Loading placeholder (only shown briefly on first load)
                         RoundedRectangle(cornerRadius: 30)
@@ -85,6 +90,9 @@ struct ContentView: View {
                                         .padding(.top, 8)
                                 }
                             )
+                            .onTapGesture {
+                                // Do nothing when loading
+                            }
                     }
                 }
                 .frame(height: 400)
@@ -95,28 +103,30 @@ struct ContentView: View {
                 VStack(spacing: 15) {
                     // Action button
                     Button(action: {
-                        playNextPhase()
+                        // TODO: Implement upload new face functionality
+                        print("Upload new face tapped")
                     }) {
-                        HStack {
-                            Text(phaseEmoji)
-                                .font(.system(size: 24))
-                            Text(phaseText)
+                        VStack(spacing: 8) {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 60, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Text("Upload New Face")
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                            Text(phaseEmoji)
-                                .font(.system(size: 24))
+                                .foregroundColor(.white)
                         }
-                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(.vertical, 25)
+                        .padding(.horizontal, 20)
                         .background(
                             LinearGradient(
-                                colors: [Color.pink, Color.purple],
+                                colors: [Color.blue, Color.purple],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
-                        .cornerRadius(15)
-                        .shadow(color: .pink.opacity(0.4), radius: 10, x: 0, y: 5)
+                        .cornerRadius(20)
+                        .shadow(color: .blue.opacity(0.4), radius: 10, x: 0, y: 5)
                     }
                 }
                 .padding(.horizontal, 30)
@@ -126,34 +136,14 @@ struct ContentView: View {
         .onAppear {
             setupPlayer()
         }
-    }
-    
-    // Computed properties for button text and emoji
-    private var phaseText: String {
-        switch currentPhase {
-        case 0:
-            return "POP 1/3!"
-        case 1:
-            return "POP 2/3!"
-        case 2:
-            return "POP 3/3!"
-        default:
-            return "RESTART"
+        .onDisappear {
+            // Clean up observer
+            if let observer = timeObserver, let player = player {
+                player.removeTimeObserver(observer)
+            }
         }
     }
     
-    private var phaseEmoji: String {
-        switch currentPhase {
-        case 0:
-            return "😈"
-        case 1:
-            return "🤮"
-        case 2:
-            return "😱"
-        default:
-            return "🔄"
-        }
-    }
     
     // Setup player when view loads (preload)
     private func setupPlayer() {
@@ -193,38 +183,49 @@ struct ContentView: View {
     // Play the next phase
     private func playNextPhase() {
         guard let player = player, videoDuration > 0 else { return }
-        
-        let segmentDuration = videoDuration / 3.0
-        
+
+        // Remove any existing time observer
+        if let observer = timeObserver {
+            player.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+
+        let segmentDuration = videoDuration / 10.0
+
         // Advance to next phase
         currentPhase += 1
-        
+
         // If we've completed all phases, restart
-        if currentPhase > 3 {
+        if currentPhase > 10 {
             currentPhase = 0
             player.seek(to: .zero)
             return
         }
-        
+
         // Calculate start and end times for this phase
         let startTime = Double(currentPhase - 1) * segmentDuration
         let endTime = Double(currentPhase) * segmentDuration
-        
-        // Seek to the start of this segment
-        player.seek(to: CMTime(seconds: startTime, preferredTimescale: 600))
-        
-        // Set up a boundary observer to stop at the end of this segment
-        let endTimeValue = CMTime(seconds: endTime, preferredTimescale: 600)
-        let times = [NSValue(time: endTimeValue)]
-        
-        player.addBoundaryTimeObserver(forTimes: times, queue: .main) { [weak player] in
-            player?.pause()
-            self.isPlayingVideo = false
+
+        print("Playing phase \(currentPhase): \(startTime)s to \(endTime)s")
+
+        // Seek to the start of this segment and wait for it to complete
+        player.seek(to: CMTime(seconds: startTime, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+            if finished {
+                // Set up a boundary observer to stop at the end of this segment
+                let endTimeValue = CMTime(seconds: endTime, preferredTimescale: 600)
+                let times = [NSValue(time: endTimeValue)]
+
+                self.timeObserver = player.addBoundaryTimeObserver(forTimes: times, queue: .main) {
+                    player.pause()
+                    self.isPlayingVideo = false
+                    print("Phase \(self.currentPhase) completed")
+                }
+
+                // Play the segment
+                self.isPlayingVideo = true
+                player.play()
+            }
         }
-        
-        // Play the segment
-        isPlayingVideo = true
-        player.play()
     }
     
 }
