@@ -70,6 +70,7 @@ struct ContentView: View {
                                     .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                            .transition(.identity)
                     } else if let thumbnail = videoThumbnail {
                         // Video thumbnail
                         Image(uiImage: thumbnail)
@@ -82,6 +83,7 @@ struct ContentView: View {
                                     .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+                            .transition(.identity)
                     } else {
                         // Loading placeholder
                         RoundedRectangle(cornerRadius: 30)
@@ -97,9 +99,11 @@ struct ContentView: View {
                                         .padding(.top, 8)
                                 }
                             )
+                            .transition(.identity)
                     }
                 }
                 .frame(height: 400)
+                .animation(nil, value: isPlayingVideo)
                 
                 Spacer()
                 
@@ -111,9 +115,7 @@ struct ContentView: View {
                             // Stop video
                             player?.pause()
                             player?.seek(to: .zero)
-                            withAnimation {
-                                isPlayingVideo = false
-                            }
+                            isPlayingVideo = false
                         } else {
                             // Start video
                             setupAndPlayVideo()
@@ -190,9 +192,7 @@ struct ContentView: View {
         newPlayer.seek(to: .zero)
         self.player = newPlayer
         
-        withAnimation {
-            isPlayingVideo = true
-        }
+        isPlayingVideo = true
         
         // Play the video
         newPlayer.play()
@@ -204,9 +204,7 @@ struct ContentView: View {
             queue: .main
         ) { [weak newPlayer] _ in
             newPlayer?.seek(to: .zero)
-            withAnimation {
-                self.isPlayingVideo = false
-            }
+            self.isPlayingVideo = false
         }
     }
 }
@@ -215,27 +213,30 @@ struct ContentView: View {
 struct InlineVideoPlayer: UIViewRepresentable {
     let player: AVPlayer
     
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(playerLayer)
-        context.coordinator.playerLayer = playerLayer
+    func makeUIView(context: Context) -> PlayerView {
+        let view = PlayerView()
+        view.playerLayer.player = player
+        view.playerLayer.videoGravity = .resizeAspectFill
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
-        DispatchQueue.main.async {
-            context.coordinator.playerLayer?.frame = uiView.bounds
+    func updateUIView(_ uiView: PlayerView, context: Context) {
+        // Frame is handled automatically by PlayerView's layoutSubviews
+    }
+    
+    class PlayerView: UIView {
+        override class var layerClass: AnyClass {
+            return AVPlayerLayer.self
         }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    class Coordinator {
-        var playerLayer: AVPlayerLayer?
+        
+        var playerLayer: AVPlayerLayer {
+            return layer as! AVPlayerLayer
+        }
+        
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            // Frame is automatically set because the layer IS the view's layer
+        }
     }
 }
 
