@@ -12,6 +12,8 @@ struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
     @State private var isPlayingVideo = false
     @State private var player: AVPlayer?
+    @State private var currentPhase: Int = 0 // 0 = not started, 1 = first third, 2 = second third, 3 = final third
+    @State private var videoDuration: Double = 0
     
     var body: some View {
         mainContentView
@@ -49,7 +51,7 @@ struct ContentView: View {
                             .font(.system(size: 40))
                     }
                     
-                    Text("Ready to pop?")
+                    Text(currentPhase == 0 ? "Ready to pop?" : "Phase \(currentPhase)/3")
                         .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(.pink.opacity(0.8))
                 }
@@ -93,23 +95,14 @@ struct ContentView: View {
                 VStack(spacing: 15) {
                     // Action button
                     Button(action: {
-                        if isPlayingVideo {
-                            // Stop video and return to start
-                            player?.pause()
-                            player?.seek(to: .zero)
-                            isPlayingVideo = false
-                        } else {
-                            // Play video
-                            player?.play()
-                            isPlayingVideo = true
-                        }
+                        playNextPhase()
                     }) {
                         HStack {
-                            Text(isPlayingVideo ? "😱" : "😈")
+                            Text(phaseEmoji)
                                 .font(.system(size: 24))
-                            Text(isPlayingVideo ? "STOP" : "LET'S POP!")
+                            Text(phaseText)
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                            Text(isPlayingVideo ? "😱" : "😈")
+                            Text(phaseEmoji)
                                 .font(.system(size: 24))
                         }
                         .foregroundColor(.white)
@@ -135,6 +128,33 @@ struct ContentView: View {
         }
     }
     
+    // Computed properties for button text and emoji
+    private var phaseText: String {
+        switch currentPhase {
+        case 0:
+            return "POP 1/3!"
+        case 1:
+            return "POP 2/3!"
+        case 2:
+            return "POP 3/3!"
+        default:
+            return "RESTART"
+        }
+    }
+    
+    private var phaseEmoji: String {
+        switch currentPhase {
+        case 0:
+            return "😈"
+        case 1:
+            return "🤮"
+        case 2:
+            return "😱"
+        default:
+            return "🔄"
+        }
+    }
+    
     // Setup player when view loads (preload)
     private func setupPlayer() {
         guard let videoURL = Bundle.main.url(forResource: "pimple_pop", withExtension: "mp4") else {
@@ -146,15 +166,65 @@ struct ContentView: View {
         newPlayer.seek(to: .zero)
         self.player = newPlayer
         
-        // Observe when video ends
+        // Get video duration
+        let asset = AVAsset(url: videoURL)
+        Task {
+            do {
+                let duration = try await asset.load(.duration)
+                await MainActor.run {
+                    self.videoDuration = CMTimeGetSeconds(duration)
+                }
+            } catch {
+                print("Error loading video duration: \(error)")
+            }
+        }
+        
+        // Observe when segment ends
         NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: newPlayer.currentItem,
             queue: .main
         ) { [weak newPlayer] _ in
-            newPlayer?.seek(to: .zero)
+            self.isPlayingVideo = false
+            // Don't reset phase - user will advance it manually
+        }
+    }
+    
+    // Play the next phase
+    private func playNextPhase() {
+        guard let player = player, videoDuration > 0 else { return }
+        
+        let segmentDuration = videoDuration / 3.0
+        
+        // Advance to next phase
+        currentPhase += 1
+        
+        // If we've completed all phases, restart
+        if currentPhase > 3 {
+            currentPhase = 0
+            player.seek(to: .zero)
+            return
+        }
+        
+        // Calculate start and end times for this phase
+        let startTime = Double(currentPhase - 1) * segmentDuration
+        let endTime = Double(currentPhase) * segmentDuration
+        
+        // Seek to the start of this segment
+        player.seek(to: CMTime(seconds: startTime, preferredTimescale: 600))
+        
+        // Set up a boundary observer to stop at the end of this segment
+        let endTimeValue = CMTime(seconds: endTime, preferredTimescale: 600)
+        let times = [NSValue(time: endTimeValue)]
+        
+        player.addBoundaryTimeObserver(forTimes: times, queue: .main) { [weak player] in
+            player?.pause()
             self.isPlayingVideo = false
         }
+        
+        // Play the segment
+        isPlayingVideo = true
+        player.play()
     }
     
 }
