@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVKit
+import UIKit
 
 struct ContentView: View {
     @StateObject private var viewModel = PimpleViewModel()
@@ -15,6 +16,13 @@ struct ContentView: View {
     @State private var currentPhase: Int = 0 // 0 = not started, 1 = first tenth, 2 = second tenth, etc.
     @State private var videoDuration: Double = 0
     @State private var timeObserver: Any?
+
+    // Draggable hand properties
+    @State private var handPosition: CGPoint = CGPoint(x: 300, y: 600)
+    @State private var handOffset: CGSize = .zero
+    @State private var isDragging = false
+    @State private var handScale: CGFloat = 1.0
+    @State private var handRotation: Angle = .zero
     
     var body: some View {
         mainContentView
@@ -32,6 +40,7 @@ struct ContentView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
+
             
             VStack(spacing: 30) {
                 // Title
@@ -39,7 +48,10 @@ struct ContentView: View {
                     HStack(spacing: 8) {
                         Text("🤮")
                             .font(.system(size: 40))
-                        Text("Pimple Couple")
+                            .onTapGesture {
+                                animateHand()
+                            }
+                        Text("Pimple Boo")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundStyle(
                                 LinearGradient(
@@ -48,15 +60,26 @@ struct ContentView: View {
                                     endPoint: .trailing
                                 )
                             )
+                            .onTapGesture {
+                                animateHand()
+                            }
                         Text("🤮")
                             .font(.system(size: 40))
+                            .onTapGesture {
+                                animateHand()
+                            }
                     }
                     
                     if currentPhase == 0 {
-                        Text("Tap the video above to start!")
-                            .font(.system(size: 16, weight: .medium, design: .rounded))
-                            .foregroundColor(.pink.opacity(0.8))
-                            .multilineTextAlignment(.center)
+                        VStack(spacing: 5) {
+                            Text("Drag the hand around and tap it to start!")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(.pink.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                            Text("👆 Look for the yellow hand!")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(.yellow)
+                        }
                     }
                 }
                 .padding(.top, 20)
@@ -74,9 +97,6 @@ struct ContentView: View {
                                     .stroke(Color.pink.opacity(0.5), lineWidth: 3)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-                            .onTapGesture {
-                                playNextPhase()
-                            }
                     } else {
                         // Loading placeholder (only shown briefly on first load)
                         RoundedRectangle(cornerRadius: 30)
@@ -92,9 +112,6 @@ struct ContentView: View {
                                         .padding(.top, 8)
                                 }
                             )
-                            .onTapGesture {
-                                // Do nothing when loading
-                            }
                     }
                 }
                 .frame(height: 400)
@@ -107,6 +124,7 @@ struct ContentView: View {
                     Button(action: {
                         // TODO: Implement upload new face functionality
                         print("Upload new face tapped")
+                        animateHand()
                     }) {
                         VStack(spacing: 8) {
                             Image(systemName: "camera.fill")
@@ -134,9 +152,24 @@ struct ContentView: View {
                 .padding(.horizontal, 30)
                 .padding(.bottom, 30)
             }
+
+            // Draggable hand overlay (on top of everything)
+            DraggableHandView(
+                position: $handPosition,
+                isDragging: $isDragging,
+                scale: handScale,
+                rotation: handRotation,
+                onTap: {
+                    playNextPhase()
+                }
+            )
         }
         .onAppear {
             setupPlayer()
+            // Position hand in upper right area for better visibility (avoid bottom UI)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                handPosition = CGPoint(x: UIScreen.main.bounds.width - 100, y: 300)
+            }
         }
         .onDisappear {
             // Clean up observer
@@ -229,7 +262,71 @@ struct ContentView: View {
             }
         }
     }
-    
+
+    // Animate the hand when other UI elements are tapped
+    private func animateHand() {
+        // Random new position - avoid bottom area where upload button is
+        let screenBounds = UIScreen.main.bounds
+        let newX = CGFloat.random(in: 80...(screenBounds.width - 80))
+        let newY = CGFloat.random(in: 120...(screenBounds.height - 250)) // Avoid bottom 250px for UI
+
+        // Animate to new position with scale and rotation
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            handPosition = CGPoint(x: newX, y: newY)
+            handScale = 1.2
+            handRotation = .degrees(Double.random(in: -30...30))
+        }
+
+        // Return to normal after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                handScale = 1.0
+                handRotation = .zero
+            }
+        }
+    }
+
+}
+
+// Draggable hand view
+struct DraggableHandView: View {
+    @Binding var position: CGPoint
+    @Binding var isDragging: Bool
+    let scale: CGFloat
+    let rotation: Angle
+    let onTap: () -> Void
+
+    // Screen bounds for constraining movement
+    private var screenBounds: CGRect {
+        UIScreen.main.bounds
+    }
+
+    var body: some View {
+        Image(systemName: "hand.point.up.fill")
+            .font(.system(size: 60, weight: .bold))
+            .foregroundColor(.yellow)
+            .shadow(color: .yellow.opacity(0.4), radius: 10, x: 0, y: 5)
+            .position(position)
+            .scaleEffect(scale)
+            .rotationEffect(rotation)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        isDragging = true
+                        // Constrain position within screen bounds, avoiding bottom UI area
+                        let newX = max(60, min(screenBounds.width - 60, value.location.x))
+                        let newY = max(100, min(screenBounds.height - 200, value.location.y)) // Avoid bottom 200px for UI
+                        position = CGPoint(x: newX, y: newY)
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
+            )
+            .onTapGesture {
+                onTap()
+            }
+            .animation(isDragging ? nil : .spring(response: 0.3, dampingFraction: 0.6), value: position)
+    }
 }
 
 // Inline video player view
